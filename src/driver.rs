@@ -63,6 +63,12 @@ pub enum PieceType {
     King
 }
 
+pub enum GameState {
+    Playing,
+    Checkmate,
+    Stalemate
+}
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Piece {
     color: PieceColor,
@@ -196,6 +202,10 @@ pub fn move_piece(coords: (usize, usize, usize, usize), board: &mut [[Option<Pie
         board[if piece.color == PieceColor::White {y2 - 1} else {y2 + 1}][x2] = None;
         // move pawn to new location
         board[y2][x2] = Some(piece); 
+    }
+    // pawn promotion logic (no underpromotion)
+    else if piece.piece_type == PieceType::Pawn && y2 == 7 || y2 == 0 {
+        board[y2][x2] = Some(Piece{color: piece.color, piece_type: PieceType::Queen, has_moved: true, en_passantable: false}); 
     }
     // normal move logic    
     else {
@@ -498,6 +508,56 @@ pub fn check_check(pos: (usize, usize), color: PieceColor, board: &[[Option<Piec
     }
     
     false
+}
+
+pub fn determine_game_state(turn: PieceColor, board: &[[Option<Piece>; 8]; 8]) -> GameState {
+
+    // iterate over whole board
+    for y in 0_usize..=7 {
+        for x in 0_usize..=7 {
+
+            // if no piece there, or piece is not correct color, continue loop
+            if board[y][x].is_none() || board[y][x].as_ref().unwrap().color != turn {
+                continue;
+            }
+
+            // if there is an available move, return normal gamestate
+            if !get_available_moves((x,y), board).is_empty() {
+                return GameState::Playing
+            }    
+        }
+    }
+
+    // if there is no available move, determine if in check, if so then checkmate else stalemate
+    match check_check(find_king(turn, board), turn, board) {
+        true => GameState::Checkmate,
+        false => GameState::Stalemate
+    }
+}
+
+// this is not the most effecient way to do this, should filter by piece type. this is just the simplest way
+pub fn get_available_moves(pos: (usize, usize), board: &[[Option<Piece>; 8]; 8]) -> Vec<(usize, usize)> {
+
+    let (x, y) = pos;
+
+    let mut move_list: Vec<(usize, usize)> = vec![];
+
+    let Some(piece) = &board[y][x] else {
+        return move_list;
+    };
+
+    // iterate over whole board
+    for y2 in 0_usize..=7 {
+        for x2 in 0_usize..=7 {
+
+            // if it's a valid move, add it to the return array
+            if is_move_valid((x, y, x2, y2), piece.color, board) {
+                move_list.push((x2, y2));
+            }
+        }
+    }
+    
+    move_list
 }
 
 // called at every end of beginning of every turn, clears the ability to en passant the current colors pawns  

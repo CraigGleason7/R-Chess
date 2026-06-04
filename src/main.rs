@@ -28,7 +28,6 @@ fn main() {
 
     let mut board: [[Option<Piece>; 8]; 8] = [[None; 8]; 8];
     let mut turn: PieceColor = PieceColor::White;
-
     
     driver::init_board(&mut board);
 
